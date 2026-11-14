@@ -175,7 +175,9 @@ class PassoApp(App):
         weightrow = ContentRow()
         weightrow.add_widget(self.label('Seu peso (kg)', 45))
         self.weight = TextInput(text=str(self.store.get('weight', 70)), multiline=False, input_type='number',
-                                size_hint_y=None, height=dp(48))
+                                size_hint_y=None, height=dp(48), background_normal='',
+                                background_active='', background_color=(.96, .97, 1, 1),
+                                foreground_color=INK, padding=(dp(12), dp(12)))
         self.weight.bind(focus=self.focus_weight)
         weightrow.add_widget(self.weight)
         self.setup.add_widget(weightrow)
@@ -201,20 +203,21 @@ class PassoApp(App):
         self.mapbox = Card()
         self.mapbox.bind(minimum_height=self.fit_mapbox)
         self.mapnote = self.label('', 52, 12)
-        self.mapbox.add_widget(self.mapnote)
         self.map_frame = BoxLayout(size_hint_y=None, height=dp(280))
         self.map_frame.add_widget(self.mapview)
         self.page_scroll.map_target = self.mapview
         self.mapbox.add_widget(self.map_frame)
         self.zoom_controls = []
         self.mapbox.add_widget(self.zoom_row())
-        self.mapbox.add_widget(self.label('No mapa: arraste com um dedo e ajuste o zoom com dois. Fora do mapa: arraste para rolar a tela.', 42, 12))
+        self.mapbox.add_widget(self.mapnote)
         map_controls = ContentRow(spacing=dp(5))
         map_controls.add_widget(self.button('Centralizar GPS', self.center))
-        map_controls.add_widget(self.button('Atualizar mapa', self.reload_map))
+        map_controls.add_widget(self.button('Explorar', self.explore_map))
         self.mapbox.add_widget(map_controls)
-        self.mapbox.add_widget(self.button('Explorar mapa livre', self.explore_map))
         content.add_widget(self.mapbox)
+        content.clear_widgets()
+        for widget in (greeting, heading, self.toggle, self.mapbox, summary, self.setup, self.actions):
+            content.add_widget(widget)
         self.resize_content()
         self.apply_map()
         self.choose(self.mode)

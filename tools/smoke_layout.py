@@ -83,12 +83,14 @@ class LayoutApp(PassoApp):
             y = max(self.page_scroll.y+dp(90), min(self.page_scroll.top-dp(90), y))
             yield from self.swipe(x, y)
             assert self.page_scroll.scroll_y < .99, ('page did not scroll', width, height)
+            self.scroll_edge(self.page_scroll.scroll_y)
             self.page_scroll.scroll_to(self.actions, padding=0, animate=False)
             yield .25
             x, y = self.actions.to_window(*self.actions.center)
             assert self.page_scroll.y <= y <= self.page_scroll.top, ('start inaccessible', width, height, y)
             Window.screenshot(name=f'tela-{width}x{height}-fim.png')
             # Map gestures must move the embedded map without scrolling the page.
+            self.scroll_edge(self.page_scroll.scroll_y)
             self.page_scroll.scroll_to(self.mapview, padding=0, animate=False)
             yield .25
             x, y = self.mapview.to_window(*self.mapview.center)
