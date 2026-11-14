@@ -25,14 +25,15 @@ from kivy_garden.mapview import MapView, MapLayer
 from kivy_garden.mapview.source import MapSource
 from kivy_garden.mapview import downloader
 
+from passo.theme import SoftButton, Card, BLUE, MUTED, PALE
 from passo.android_bridge import AndroidBridge
 from passo.core import to_gpx
 from passo.storage import Store
 from passo.map_widget import ReliableMapSource
 from passo.responsive import FlowLabel, FlowButton, ContentRow, PageMap, MapScrollView
 
-GREEN = (.14, .44, .30, 1)
-INK = (.06, .18, .15, 1)
+GREEN = BLUE
+INK = (.09, .11, .18, 1)
 downloader.USER_AGENT = 'PassoPython/2.0 (Android walking tracker; Kivy MapView)'
 
 
@@ -69,18 +70,19 @@ class RouteLayer(MapLayer):
 
 
 class PassoApp(App):
-    title = 'Passo Python'
+    title = 'passo'
 
     def button(self, text, action):
-        return FlowButton(text=text, background_normal='',
-                      background_color=GREEN, color=(1, 1, 1, 1),
+        primary = text in ('Iniciar atividade', 'Pausar', 'Retomar', 'Parar e salvar', 'Confirmar')
+        return SoftButton(text=text, fill=BLUE if primary else PALE,
+                      color=(1, 1, 1, 1) if primary else BLUE,
                       on_release=lambda *_: action())
 
     def label(self, text, height=42, font=16):
         return FlowLabel(text=text, color=INK, font=font, minimum=height)
 
     def build(self):
-        Window.clearcolor = (.96, .97, .95, 1)
+        Window.clearcolor = (.96, .97, 1, 1)
         Window.softinput_mode = 'below_target'
         self.store = Store(self.user_data_dir)
         self.bridge = AndroidBridge(self.user_data_dir, self.message)
@@ -97,9 +99,10 @@ class PassoApp(App):
         nav.add_widget(self.button('Atividade', self.active_home))
         nav.add_widget(self.button('Histórico', self.history))
         nav.add_widget(self.button('Sobre', self.about))
-        self.root_box.add_widget(nav)
+        self.navigation = nav
         self.body = BoxLayout(orientation='vertical', spacing=dp(7))
         self.root_box.add_widget(self.body)
+        self.root_box.add_widget(self.navigation)
         cache_dir = Path(self.user_data_dir)/'tiles'
         cache_dir.mkdir(parents=True, exist_ok=True)
         self.map_source = ReliableMapSource(cache_dir, self.map_status, certifi.where())
@@ -141,8 +144,8 @@ class PassoApp(App):
                             effect_cls=ScrollEffect,
                             scroll_type=['content', 'bars'], always_overscroll=False,
                             scroll_distance=dp(12), scroll_timeout=180)
-        box = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(8),
-                        padding=(0, dp(4), dp(5), dp(16)))
+        box = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(14),
+                        padding=(dp(2), dp(4), dp(7), dp(16)))
         box.bind(minimum_height=box.setter('height'))
         scroll.add_widget(box)
         self.body.add_widget(scroll)
@@ -155,7 +158,13 @@ class PassoApp(App):
         if self.mapview.parent:
             self.mapview.parent.remove_widget(self.mapview)
         content = self.scroll_content()
-        self.setup = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(7))
+        greeting = self.label('Sua próxima conquista começa aqui', 28, 13)
+        greeting.color = MUTED
+        content.add_widget(greeting)
+        heading = self.label('Vamos nos movimentar?', 40, 25)
+        heading.bold = True
+        content.add_widget(heading)
+        self.setup = Card()
         self.setup.bind(minimum_height=self.fit_setup)
         modes = ContentRow(spacing=dp(5))
         self.walk = self.button('Caminhada', lambda: self.choose('walk'))
@@ -171,13 +180,25 @@ class PassoApp(App):
         weightrow.add_widget(self.weight)
         self.setup.add_widget(weightrow)
         content.add_widget(self.setup)
-        self.stats = self.label('', 76, 19)
+        self.stats = self.label('', 48, 29)
+        self.stats.bold = True
         self.status = self.label('', 50, 14)
-        content.add_widget(self.stats)
-        content.add_widget(self.status)
+        summary = Card()
+        caption = self.label('SUA ATIVIDADE', 24, 11)
+        caption.color = MUTED
+        summary.add_widget(caption)
+        summary.add_widget(self.stats)
+        self.metrics = self.label('', 45, 14)
+        self.metrics.color = MUTED
+        summary.add_widget(self.metrics)
+        summary.add_widget(self.status)
+        content.add_widget(summary)
+        self.actions = ContentRow(spacing=dp(6))
+        self.action_signature = None
+        content.add_widget(self.actions)
         self.toggle = self.button('', self.toggle_map)
         content.add_widget(self.toggle)
-        self.mapbox = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(6))
+        self.mapbox = Card()
         self.mapbox.bind(minimum_height=self.fit_mapbox)
         self.mapnote = self.label('', 52, 12)
         self.mapbox.add_widget(self.mapnote)
@@ -194,9 +215,6 @@ class PassoApp(App):
         self.mapbox.add_widget(map_controls)
         self.mapbox.add_widget(self.button('Explorar mapa livre', self.explore_map))
         content.add_widget(self.mapbox)
-        self.actions = ContentRow(spacing=dp(6))
-        self.action_signature = None
-        content.add_widget(self.actions)
         self.resize_content()
         self.apply_map()
         self.choose(self.mode)
@@ -284,8 +302,10 @@ class PassoApp(App):
 
     def choose(self, mode):
         self.mode = mode
-        self.walk.background_color = GREEN if mode == 'walk' else (.38, .48, .40, 1)
-        self.run.background_color = GREEN if mode == 'run' else (.38, .48, .40, 1)
+        self.walk.fill = BLUE if mode == 'walk' else PALE
+        self.run.fill = BLUE if mode == 'run' else PALE
+        self.walk.color = (1, 1, 1, 1) if mode == 'walk' else BLUE
+        self.run.color = (1, 1, 1, 1) if mode == 'run' else BLUE
 
     def toggle_map(self):
         self.store.set('map_open', not self.store.get('map_open', True))
@@ -414,9 +434,9 @@ class PassoApp(App):
         duration, distance = a.get('duration', 0), a.get('distance', 0)
         pace = duration/distance if distance >= 50 else None
         pace_text = f'{int(pace)//60}:{int(pace)%60:02}' if pace is not None else '--'
-        self.stats.text = (f'{clock(duration)}    |    {distance/1000:.2f} km\n'
-                           f'{a.get("kcal", 0):.0f} kcal    |    {pace_text} min/km\n'
-                           f'{distance/duration*3600 if duration else 0:.1f} km/h')
+        self.stats.text = f'{clock(duration)}'
+        self.metrics.text = (f'{distance/1000:.2f} km     •     {a.get("kcal", 0):.0f} kcal\n'
+                             f'{pace_text} min/km     •     {distance/duration*3600 if duration else 0:.1f} km/h')
         interrupted = bool(active) and time.time()-self.store.get('heartbeat', 0) > 5
         error = self.store.get('service_error', '') or a.get('error', '')
         if self.viewing:
@@ -447,7 +467,7 @@ class PassoApp(App):
                 self.actions.add_widget(self.button('Parar e salvar', lambda: self.confirm(
                     'Encerrar o GPS e salvar a atividade?', lambda: self.send('finish'))))
             else:
-                self.actions.add_widget(self.button('Iniciar', self.start))
+                self.actions.add_widget(self.button('Iniciar atividade', self.start))
         signature = (a.get('id'), len(a.get('points', [])))
         if self.signature != signature:
             self.signature = signature
@@ -459,16 +479,21 @@ class PassoApp(App):
     def history(self):
         self.page = 'history'
         box = self.scroll_content()
+        title = self.label('Suas conquistas', 48, 26)
+        title.bold = True
+        box.add_widget(title)
         records = self.store.history()
         if not records:
             box.add_widget(self.label('Suas atividades salvas aparecerão aqui.', 80))
         for a in records:
             title = 'Corrida' if a['mode'] == 'run' else 'Caminhada'
             date = datetime.fromtimestamp(a['date']/1000).strftime('%d/%m/%Y %H:%M')
-            box.add_widget(self.label(f'{title} · {date}\n{a["distance"]/1000:.2f} km · {clock(a["duration"])}', 70))
-            box.add_widget(self.button('Ver percurso', lambda a=a: self.view(a)))
-            box.add_widget(self.button('Exportar GPX', lambda a=a: self.export(a)))
-            box.add_widget(self.button('Apagar', lambda a=a: self.confirm('Apagar esta atividade?',
+            card = Card()
+            box.add_widget(card)
+            card.add_widget(self.label(f'{title} · {date}\n{a["distance"]/1000:.2f} km · {clock(a["duration"])}', 70))
+            card.add_widget(self.button('Ver percurso', lambda a=a: self.view(a)))
+            card.add_widget(self.button('Exportar GPX', lambda a=a: self.export(a)))
+            card.add_widget(self.button('Apagar', lambda a=a: self.confirm('Apagar esta atividade?',
                            lambda: (self.store.delete(a['id']), self.history()))))
 
     def view(self, activity):

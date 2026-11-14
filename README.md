@@ -4,18 +4,19 @@ Reimplementação do Passo em Python com Kivy, mapa OpenStreetMap, GPS Android e
 
 Atualização da compilação: a primeira execução no GitHub passou nos 11 testes e compilou os componentes nativos, mas falhou ao reutilizar o ambiente de instalação de pacotes entre as arquiteturas. O projeto agora inclui uma correção pequena em `tools/prepare_p4a.py`, que recria esse ambiente a cada arquitetura, além de fixar uma versão puramente Python de chardet. O fluxo salva cache de compilação e um relatório separado em caso de falha. O fluxo também inicia automaticamente quando há envio à branch main. O resultado final da compilação será informado junto do APK; as limitações abaixo descrevem a entrega inicial do código.
 
-## Estado da entrega 2.0.4
+## Estado da entrega 2.0.5
 
-- Mapa com botoes + Aproximar e - Afastar, nos limites do provedor de imagens.
-- Explorar mapa livre abre o mapa interativo: arraste com um dedo e afaste/junte dois dedos para o zoom.
-- A exploracao nao e interrompida por novas posicoes GPS. Minha posicao GPS volta ao acompanhamento.
-- Testes de gestos passaram: arraste vertical/horizontal, dois dedos para aproximar/afastar, botoes de zoom, limites de zoom e manutencao da camera durante atualizacoes GPS.
-- Mantidos o nome passo centralizado, a rolagem da pagina e os testes de cinco tamanhos de tela.
-- Os testes visuais e de toque usam Kivy/Linux/Xvfb, nao um aparelho Android fisico.
+- Toque direto no mapa principal: um dedo move o mapa; dois dedos ajustam o zoom.
+- Gestos que comecam no mapa sao encaminhados ao mapa. Gestos fora dele continuam rolando a pagina; a barra lateral continua disponivel.
+- Mantidos zoom pelos botoes +/-, exploracao em tela ampliada e retorno a posicao GPS.
+- Testes passaram em cinco tamanhos de janela, incluindo arraste do mapa principal sem deslocar a pagina e zoom de dois dedos diretamente no mapa principal.
+- Continuam passando os testes de zoom em tela ampliada, limites de zoom, camera livre durante novas posicoes e retorno ao GPS.
+- Validacao em Kivy/Linux/Xvfb, sem teste em aparelho Android fisico.
+- Compilacao: https://github.com/pimentotonygv-prog/passo-python-android/actions/runs/43552554650
 
-### Assinatura e dados
+### Atualizacao
 
-O APK entregue no chat usa a mesma chave local das versoes 2.0.1, 2.0.2 e 2.0.3 enviadas aqui. Instale por cima, sem desinstalar, para preservar os dados. A chave privada nao e publicada no GitHub. Os APKs brutos da compilacao online usam uma assinatura temporaria diferente e nao substituem o APK assinado entregue aqui.
+O APK entregue usa a mesma chave estavel das versoes 2.0.1 a 2.0.4 enviadas neste chat. Instale por cima, sem desinstalar, para preservar os dados. A chave privada nao e publicada. APKs brutos do GitHub usam outra assinatura temporaria.
 
 ## Funções implementadas no código
 

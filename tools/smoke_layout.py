@@ -83,7 +83,7 @@ class LayoutApp(PassoApp):
             y = max(self.page_scroll.y+dp(90), min(self.page_scroll.top-dp(90), y))
             yield from self.swipe(x, y)
             assert self.page_scroll.scroll_y < .99, ('page did not scroll', width, height)
-            self.scroll_edge(0)
+            self.page_scroll.scroll_to(self.actions, padding=0, animate=False)
             yield .25
             x, y = self.actions.to_window(*self.actions.center)
             assert self.page_scroll.y <= y <= self.page_scroll.top, ('start inaccessible', width, height, y)
