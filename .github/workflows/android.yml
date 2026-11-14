@@ -18,16 +18,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb xauth libgl1-mesa-dri libgles2 libmtdev1
-          python -m pip install --only-binary=:all: kivy kivy_garden.mapview requests certifi
+          python -m pip install --only-binary=:all: kivy kivy_garden.mapview requests certifi pytest
       - name: Testar mapa com imagens reais
         env:
           KIVY_NO_ARGS: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: xvfb-run -a python tools/smoke_map.py
+      - name: Testar telas pequenas e rolagem por toque
+        env:
+          KIVY_NO_ARGS: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python tools/smoke_layout.py
       - uses: actions/upload-artifact@v4
         with:
           name: Mapa-validado
-          path: mapa-validado*.png
+          path: |
+            mapa-validado*.png
+            tela-*.png
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 120

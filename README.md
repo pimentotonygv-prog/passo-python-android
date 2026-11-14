@@ -4,13 +4,19 @@ Reimplementação do Passo em Python com Kivy, mapa OpenStreetMap, GPS Android e
 
 Atualização da compilação: a primeira execução no GitHub passou nos 11 testes e compilou os componentes nativos, mas falhou ao reutilizar o ambiente de instalação de pacotes entre as arquiteturas. O projeto agora inclui uma correção pequena em `tools/prepare_p4a.py`, que recria esse ambiente a cada arquitetura, além de fixar uma versão puramente Python de chardet. O fluxo salva cache de compilação e um relatório separado em caso de falha. O fluxo também inicia automaticamente quando há envio à branch main. O resultado final da compilação será informado junto do APK; as limitações abaixo descrevem a entrega inicial do código.
 
-## Estado desta entrega
+## Estado da entrega 2.0.1
 
-- Código-fonte, configuração Android, testes e fluxo manual de compilação incluídos.
-- 11 testes da lógica e armazenamento passaram no Windows; todos os arquivos Python passaram na verificação de sintaxe.
-- **Não foi gerado um APK desta versão Python.** O ambiente disponível não tem Linux/WSL2 nem a cadeia de compilação Python para Android.
-- A interface Kivy, a compilação, as permissões Android, a exportação pelo seletor de documentos e a gravação com tela apagada **ainda não foram executadas/validadas em dispositivo**. Os arquivos de compilação são uma configuração inicial, não uma compilação comprovada.
-- O APK Passo v1.3 distribuído anteriormente é a implementação Java. Ele não é o APK deste projeto Python.
+- APK 2.0.1 gerado e assinado localmente com a chave estavel do Passo. A chave privada nao e publicada no projeto ou no GitHub.
+- 16 testes de logica, armazenamento e mapa passaram.
+- Teste visual Kivy/Linux: imagens reais do mapa baixadas por HTTPS e exibidas na interface. GPS fisico, permissoes e tela apagada ainda precisam de teste no Android.
+- Corrigidos o cache privado do mapa, os certificados HTTPS, os avisos de falha e a busca de posicao sem iniciar caminhada.
+- Compilacao: https://github.com/pimentotonygv-prog/passo-python-android/actions/runs/43543441215
+
+### Atualizar a versao de teste
+
+A versao 2.0.0 usava uma chave temporaria. Exporte atividades em GPX antes de remover apenas o Passo Python 2.0.0 e instalar 2.0.1. A desinstalacao apaga os dados privados e o historico nao e importado automaticamente. O Passo original em Java e outro app e nao precisa ser removido.
+
+Os APKs brutos do GitHub usam assinatura de depuracao temporaria, diferente da chave estavel do arquivo entregue neste chat. Atualizacoes devem manter a mesma chave de assinatura.
 
 ## Funções implementadas no código
 

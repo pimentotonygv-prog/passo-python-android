@@ -28,6 +28,7 @@ from passo.android_bridge import AndroidBridge
 from passo.core import to_gpx
 from passo.storage import Store
 from passo.map_widget import ReliableMapSource
+from passo.responsive import FlowLabel, FlowButton, ContentRow, PageMap
 
 GREEN = (.14, .44, .30, 1)
 INK = (.06, .18, .15, 1)
@@ -70,28 +71,27 @@ class PassoApp(App):
     title = 'Passo Python'
 
     def button(self, text, action):
-        return Button(text=text, size_hint_y=None, height=dp(48), background_normal='',
+        return FlowButton(text=text, background_normal='',
                       background_color=GREEN, color=(1, 1, 1, 1),
                       on_release=lambda *_: action())
 
     def label(self, text, height=42, font=16):
-        label = Label(text=text, color=INK, font_size=font, size_hint_y=None, height=dp(height),
-                      halign='center', valign='middle')
-        label.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
-        return label
+        return FlowLabel(text=text, color=INK, font=font, minimum=height)
 
     def build(self):
         Window.clearcolor = (.96, .97, .95, 1)
+        Window.softinput_mode = 'below_target'
         self.store = Store(self.user_data_dir)
         self.bridge = AndroidBridge(self.user_data_dir, self.message)
         self.mode, self.viewing = 'walk', None
         self.signature, self.follow = None, True
         self.preview = None
+        self.map_popup = None
         self.map_loaded, self.map_error = False, ''
         self.position_note = 'Visão geral. Toque em Centralizar GPS para encontrar sua posição.'
         self.root_box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(12))
         self.root_box.add_widget(self.label('passo.  |  Python para Android', 45, 23))
-        nav = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
+        nav = ContentRow(spacing=dp(6))
         nav.add_widget(self.button('Atividade', self.active_home))
         nav.add_widget(self.button('Histórico', self.history))
         nav.add_widget(self.button('Sobre', self.about))
@@ -101,36 +101,48 @@ class PassoApp(App):
         cache_dir = Path(self.user_data_dir)/'tiles'
         cache_dir.mkdir(parents=True, exist_ok=True)
         self.map_source = ReliableMapSource(cache_dir, self.map_status, certifi.where())
-        self.mapview = MapView(zoom=1, lat=20, lon=0, map_source=self.map_source,
+        self.mapview = PageMap(zoom=1, lat=20, lon=0, map_source=self.map_source,
                               cache_dir=str(cache_dir), background_color=(.92, .94, .91, 1))
         self.map_source.cache_dir = str(cache_dir)
         self.route = RouteLayer()
         self.mapview.add_layer(self.route, mode='window')
         self.mapview.bind(on_touch_down=self.map_touched)
         self.home()
+        Window.bind(size=self.resize_content)
         Clock.schedule_once(lambda dt: self.locate(prompt=False), 1)
         Clock.schedule_interval(self.refresh, 1)
         return self.root_box
 
     def message(self, text):
-        popup = Popup(title='Passo', size_hint=(.92, .48), content=self.label(str(text), 120))
+        box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(8))
+        scroll = ScrollView(do_scroll_x=False)
+        scroll.add_widget(self.label(str(text), 80))
+        box.add_widget(scroll)
+        popup = Popup(title='Passo', size_hint=(.94, .75), content=box)
+        box.add_widget(self.button('Fechar', popup.dismiss))
         popup.open()
 
     def confirm(self, text, callback):
         box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(10))
-        box.add_widget(self.label(text, 90))
-        popup = Popup(title='Confirmar', content=box, size_hint=(.92, .55))
+        scroll = ScrollView(do_scroll_x=False)
+        scroll.add_widget(self.label(text, 60))
+        box.add_widget(scroll)
+        popup = Popup(title='Confirmar', content=box, size_hint=(.94, .75))
         box.add_widget(self.button('Confirmar', lambda: (popup.dismiss(), callback())))
         box.add_widget(self.button('Cancelar', popup.dismiss))
         popup.open()
 
     def scroll_content(self):
         self.body.clear_widgets()
-        scroll = ScrollView()
-        box = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(8))
+        scroll = ScrollView(do_scroll_x=False, bar_width=dp(5),
+                            scroll_type=['content', 'bars'], always_overscroll=False,
+                            scroll_distance=dp(12), scroll_timeout=180)
+        box = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(8),
+                        padding=(0, dp(4), dp(5), dp(16)))
         box.bind(minimum_height=box.setter('height'))
         scroll.add_widget(box)
         self.body.add_widget(scroll)
+        self.page_scroll, self.content = scroll, box
         return box
 
     def home(self):
@@ -138,41 +150,90 @@ class PassoApp(App):
         # Detach the map before disposing the old layout.
         if self.mapview.parent:
             self.mapview.parent.remove_widget(self.mapview)
-        self.body.clear_widgets()
-        self.setup = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(104), spacing=dp(5))
-        modes = BoxLayout(spacing=dp(5))
+        content = self.scroll_content()
+        self.setup = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(7))
+        self.setup.bind(minimum_height=self.fit_setup)
+        modes = ContentRow(spacing=dp(5))
         self.walk = self.button('Caminhada', lambda: self.choose('walk'))
         self.run = self.button('Corrida', lambda: self.choose('run'))
         modes.add_widget(self.walk)
         modes.add_widget(self.run)
         self.setup.add_widget(modes)
-        weightrow = BoxLayout(size_hint_y=None, height=dp(45))
+        weightrow = ContentRow()
         weightrow.add_widget(self.label('Seu peso (kg)', 45))
-        self.weight = TextInput(text=str(self.store.get('weight', 70)), multiline=False, input_type='number')
+        self.weight = TextInput(text=str(self.store.get('weight', 70)), multiline=False, input_type='number',
+                                size_hint_y=None, height=dp(48))
+        self.weight.bind(focus=self.focus_weight)
         weightrow.add_widget(self.weight)
         self.setup.add_widget(weightrow)
-        self.body.add_widget(self.setup)
+        content.add_widget(self.setup)
         self.stats = self.label('', 76, 19)
         self.status = self.label('', 50, 14)
-        self.body.add_widget(self.stats)
-        self.body.add_widget(self.status)
+        content.add_widget(self.stats)
+        content.add_widget(self.status)
         self.toggle = self.button('', self.toggle_map)
-        self.body.add_widget(self.toggle)
-        self.mapbox = BoxLayout(orientation='vertical', spacing=dp(4))
+        content.add_widget(self.toggle)
+        self.mapbox = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(6))
+        self.mapbox.bind(minimum_height=self.fit_mapbox)
         self.mapnote = self.label('', 52, 12)
         self.mapbox.add_widget(self.mapnote)
-        self.mapbox.add_widget(self.mapview)
-        map_controls = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(5))
+        self.map_frame = BoxLayout(size_hint_y=None, height=dp(280))
+        self.map_frame.add_widget(self.mapview)
+        self.mapbox.add_widget(self.map_frame)
+        self.mapbox.add_widget(self.label('Arraste para rolar a tela. Para mover o mapa, toque em Explorar mapa.', 42, 12))
+        map_controls = ContentRow(spacing=dp(5))
         map_controls.add_widget(self.button('Centralizar GPS', self.center))
         map_controls.add_widget(self.button('Atualizar mapa', self.reload_map))
         self.mapbox.add_widget(map_controls)
-        self.body.add_widget(self.mapbox)
-        self.actions = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
-        self.body.add_widget(self.actions)
+        self.mapbox.add_widget(self.button('Explorar mapa', self.explore_map))
+        content.add_widget(self.mapbox)
+        self.actions = ContentRow(spacing=dp(6))
+        self.action_signature = None
+        content.add_widget(self.actions)
+        self.resize_content()
         self.apply_map()
         self.choose(self.mode)
         self.refresh()
         self.update_map_note()
+
+    def fit_setup(self, *_):
+        self.setup.height = 0 if self.setup.disabled else self.setup.minimum_height
+
+    def fit_mapbox(self, *_):
+        self.mapbox.height = self.mapbox.minimum_height if self.store.get('map_open', True) else 0
+
+    def resize_content(self, *_):
+        if hasattr(self, 'map_frame'):
+            self.map_frame.height = max(dp(200), min(dp(400), Window.height*.40))
+
+    def focus_weight(self, widget, focused):
+        if focused:
+            Clock.schedule_once(lambda dt: self.page_scroll.scroll_to(widget, padding=dp(16), animate=False), .25)
+
+    def explore_map(self):
+        if self.map_popup:
+            return
+        self.map_frame.remove_widget(self.mapview)
+        self.mapview.interactive = True
+        box = BoxLayout(orientation='vertical', spacing=dp(7), padding=dp(6))
+        popup = Popup(title='Mapa GPS', size_hint=(.98, .96), content=box, auto_dismiss=False)
+        self.map_popup = popup
+        box.add_widget(self.button('Voltar para a atividade', popup.dismiss))
+        box.add_widget(self.mapview)
+        controls = ContentRow(spacing=dp(6))
+        controls.add_widget(self.button('Centralizar GPS', self.center))
+        controls.add_widget(self.button('Atualizar mapa', self.reload_map))
+        box.add_widget(controls)
+        popup.bind(on_dismiss=self.close_map_popup)
+        popup.open()
+        Clock.schedule_once(lambda dt: self.mapview.trigger_update(True), .1)
+
+    def close_map_popup(self, *_):
+        self.mapview.parent.remove_widget(self.mapview)
+        self.mapview.interactive = False
+        self.map_frame.add_widget(self.mapview)
+        self.map_popup = None
+        Clock.schedule_once(lambda dt: self.mapview.trigger_update(True), .1)
 
     def active_home(self):
         self.viewing = None
@@ -193,10 +254,8 @@ class PassoApp(App):
         self.toggle.text = 'Fechar mapa GPS' if opened else 'Abrir mapa GPS'
         self.mapbox.opacity = 1 if opened else 0
         self.mapbox.disabled = not opened
-        self.mapbox.size_hint_y = 1 if opened else None
-        if not opened:
-            self.mapbox.height = 0
-        else:
+        self.fit_mapbox()
+        if opened:
             Clock.schedule_once(lambda dt: self.route.reposition(), .1)
 
     def map_status(self, loaded, error):
@@ -259,7 +318,7 @@ class PassoApp(App):
         self.update_map_note()
 
     def map_touched(self, widget, touch):
-        if widget.collide_point(*touch.pos):
+        if widget.interactive and widget.collide_point(*touch.pos):
             self.follow = False
 
     def center(self):
@@ -331,18 +390,21 @@ class PassoApp(App):
         self.status.text = status
         self.setup.disabled = bool(active or self.viewing)
         self.setup.opacity = 0 if active or self.viewing else 1
-        self.setup.height = 0 if active or self.viewing else dp(104)
-        self.actions.clear_widgets()
-        if self.viewing:
-            self.actions.add_widget(self.button('Voltar ao histórico', self.history))
-        elif active:
-            running = a.get('status') == 'running' and not interrupted
-            self.actions.add_widget(self.button('Pausar' if running else 'Retomar',
-                                                lambda: self.send('pause' if running else 'resume')))
-            self.actions.add_widget(self.button('Parar e salvar', lambda: self.confirm(
-                'Encerrar o GPS e salvar a atividade?', lambda: self.send('finish'))))
-        else:
-            self.actions.add_widget(self.button('Iniciar', self.start))
+        self.fit_setup()
+        running = a.get('status') == 'running' and not interrupted
+        action_signature = (bool(self.viewing), bool(active), running)
+        if self.action_signature != action_signature:
+            self.action_signature = action_signature
+            self.actions.clear_widgets()
+            if self.viewing:
+                self.actions.add_widget(self.button('Voltar ao histórico', self.history))
+            elif active:
+                self.actions.add_widget(self.button('Pausar' if running else 'Retomar',
+                                                    lambda: self.send('pause' if running else 'resume')))
+                self.actions.add_widget(self.button('Parar e salvar', lambda: self.confirm(
+                    'Encerrar o GPS e salvar a atividade?', lambda: self.send('finish'))))
+            else:
+                self.actions.add_widget(self.button('Iniciar', self.start))
         signature = (a.get('id'), len(a.get('points', [])))
         if self.signature != signature:
             self.signature = signature
