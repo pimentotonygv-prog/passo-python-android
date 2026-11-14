@@ -29,7 +29,7 @@ from passo.android_bridge import AndroidBridge
 from passo.core import to_gpx
 from passo.storage import Store
 from passo.map_widget import ReliableMapSource
-from passo.responsive import FlowLabel, FlowButton, ContentRow, PageMap
+from passo.responsive import FlowLabel, FlowButton, ContentRow, PageMap, MapScrollView
 
 GREEN = (.14, .44, .30, 1)
 INK = (.06, .18, .15, 1)
@@ -137,7 +137,7 @@ class PassoApp(App):
 
     def scroll_content(self):
         self.body.clear_widgets()
-        scroll = ScrollView(do_scroll_x=False, bar_width=dp(5),
+        scroll = MapScrollView(do_scroll_x=False, bar_width=dp(5),
                             effect_cls=ScrollEffect,
                             scroll_type=['content', 'bars'], always_overscroll=False,
                             scroll_distance=dp(12), scroll_timeout=180)
@@ -183,10 +183,11 @@ class PassoApp(App):
         self.mapbox.add_widget(self.mapnote)
         self.map_frame = BoxLayout(size_hint_y=None, height=dp(280))
         self.map_frame.add_widget(self.mapview)
+        self.page_scroll.map_target = self.mapview
         self.mapbox.add_widget(self.map_frame)
         self.zoom_controls = []
         self.mapbox.add_widget(self.zoom_row())
-        self.mapbox.add_widget(self.label('Use + e − para o zoom. Toque em Explorar mapa livre para arrastar o mapa e usar dois dedos.', 42, 12))
+        self.mapbox.add_widget(self.label('No mapa: arraste com um dedo e ajuste o zoom com dois. Fora do mapa: arraste para rolar a tela.', 42, 12))
         map_controls = ContentRow(spacing=dp(5))
         map_controls.add_widget(self.button('Centralizar GPS', self.center))
         map_controls.add_widget(self.button('Atualizar mapa', self.reload_map))
@@ -244,7 +245,7 @@ class PassoApp(App):
 
     def close_map_popup(self, *_):
         self.mapview.parent.remove_widget(self.mapview)
-        self.mapview.interactive = False
+        self.mapview.interactive = True
         self.map_frame.add_widget(self.mapview)
         self.map_popup = None
         if self.popup_zoom_pair in self.zoom_controls:

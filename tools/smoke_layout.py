@@ -79,21 +79,25 @@ class LayoutApp(PassoApp):
             self.scroll_edge(1)
             yield .15
             Window.screenshot(name=f'tela-{width}x{height}-inicio.png')
-            yield from self.swipe(self.page_scroll.center_x, self.page_scroll.center_y)
+            x, y = self.stats.to_window(*self.stats.center)
+            y = max(self.page_scroll.y+dp(90), min(self.page_scroll.top-dp(90), y))
+            yield from self.swipe(x, y)
             assert self.page_scroll.scroll_y < .99, ('page did not scroll', width, height)
             self.scroll_edge(0)
             yield .25
             x, y = self.actions.to_window(*self.actions.center)
             assert self.page_scroll.y <= y <= self.page_scroll.top, ('start inaccessible', width, height, y)
             Window.screenshot(name=f'tela-{width}x{height}-fim.png')
-            # Finger gestures over the embedded map must scroll the page too.
+            # Map gestures must move the embedded map without scrolling the page.
             self.page_scroll.scroll_to(self.mapview, padding=0, animate=False)
             yield .25
             x, y = self.mapview.to_window(*self.mapview.center)
             y = max(self.page_scroll.y+dp(90), min(self.page_scroll.top-dp(90), y))
             before = self.page_scroll.scroll_y
+            before_camera = (self.mapview.lat, self.mapview.lon)
             yield from self.swipe(x, y, -1 if before < .5 else 1)
-            assert abs(self.page_scroll.scroll_y-before) > .005, ('map blocked page scroll', width, height)
+            assert abs(self.page_scroll.scroll_y-before) < .005, ('map moved page', width, height)
+            assert sum(abs(a-b) for a,b in zip(before_camera,(self.mapview.lat,self.mapview.lon))) > .001, ('embedded map did not pan', width,height)
             # Repeated metric updates must not replace a button during a tap.
             button = self.actions.children[0]
             self.refresh()
@@ -110,6 +114,25 @@ class LayoutApp(PassoApp):
         Window.size = (400, 850)
         self.active_home()
         yield .3
+        self.page_scroll.scroll_to(self.mapview, padding=0, animate=False)
+        yield .3
+        x, y = self.mapview.to_window(*self.mapview.center)
+        before_scroll = self.page_scroll.scroll_y
+        before_scale = (2**self.mapview.zoom)*self.mapview.scale
+        left, right = UnitTestTouch(x-30, y), UnitTestTouch(x+30, y)
+        left.touch_down()
+        right.touch_down()
+        yield .02
+        for distance in (40, 50, 65, 80):
+            left.touch_move(x-distance, y)
+            right.touch_move(x+distance, y)
+            yield .03
+        left.touch_up()
+        right.touch_up()
+        yield .5
+        assert (2**self.mapview.zoom)*self.mapview.scale > before_scale*1.2, 'embedded pinch did not zoom'
+        assert abs(self.page_scroll.scroll_y-before_scroll) < .005, 'embedded pinch scrolled page'
+        Window.screenshot(name='tela-mapa-toque-direto.png')
         self.explore_map()
         yield .3
         assert self.map_popup and self.mapview.interactive
@@ -199,7 +222,7 @@ class LayoutApp(PassoApp):
         self.store.checkpoint({})
         self.map_popup.dismiss()
         yield .3
-        assert not self.map_popup and not self.mapview.interactive
+        assert not self.map_popup and self.mapview.interactive
         assert self.mapview.parent is self.map_frame
 
         Window.size = (280, 480)
