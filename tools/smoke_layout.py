@@ -163,6 +163,23 @@ class LayoutApp(PassoApp):
         yield .3
         assert self.map_popup and self.mapview.interactive
         assert not self.follow
+        farther, closer = self.popup_zoom_pair
+        initial_zoom = self.mapview.zoom
+        closer.trigger_action(duration=0)
+        yield .3
+        assert self.mapview.zoom == initial_zoom+1
+        farther.trigger_action(duration=0)
+        yield .3
+        assert self.mapview.zoom == initial_zoom
+        self.mapview.zoom = self.map_source.max_zoom
+        yield .1
+        self.zoom_map(1)
+        assert self.mapview.zoom == self.map_source.max_zoom and closer.disabled
+        self.mapview.zoom = self.map_source.min_zoom
+        yield .1
+        self.zoom_map(-1)
+        assert self.mapview.zoom == self.map_source.min_zoom and farther.disabled
+
         self.mapview.zoom = 5
         self.mapview.center_on(20, 0)
         yield .3
@@ -256,6 +273,21 @@ class LayoutApp(PassoApp):
         self.scroll_edge(0)
         yield .2
         Window.screenshot(name='tela-280x480-historico-fim.png')
+        # Permission-approved start opens the map even if previously collapsed.
+        self.active_home()
+        yield .3
+        self.store.set('map_open', False)
+        self.apply_map()
+        self.bridge.ready = lambda callback: callback()
+        self.bridge.launch = lambda: None
+        self.store.set('last_command', 0)
+        self.start()
+        yield .4
+        assert self.store.get('map_open') and self.mapbox.parent is self.content
+        assert self.follow and not self.route.points
+        commands = self.store.commands()
+        assert len(commands) == 1 and commands[0]['action'] == 'start'
+
 
 
 LayoutApp().run()

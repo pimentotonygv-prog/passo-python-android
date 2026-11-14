@@ -25,6 +25,8 @@ class Tracker:
         self.active = copy.deepcopy(saved) if saved else None
         self.started = None
         self.last = None
+        self.last_signal_elapsed = None
+        self.recording_since = None
         self.segment = int((saved or {}).get('segment', 0))
         if self.active:
             self.active['status'] = 'interrupted'
@@ -45,6 +47,8 @@ class Tracker:
         self.segment += 1
         self.last = None
         self.started = self.mono()
+        self.recording_since = self.wall()*1000
+        self.last_signal_elapsed = None
         self.active['status'] = 'running'
         self.active.pop('error', None)
 
@@ -83,6 +87,12 @@ class Tracker:
             return False
         if not (-90 <= lat <= 90 and -180 <= lon <= 180 and 0 < accuracy <= 15 and 0 <= age <= 5):
             return False
+        if self.last_signal_elapsed is not None and elapsed <= self.last_signal_elapsed:
+            return False
+        if timestamp is not None and (not math.isfinite(timestamp) or timestamp < self.recording_since):
+            return False
+        if speed is not None and (not math.isfinite(speed) or speed < 0):
+            speed = None
         p = dict(lat=lat, lon=lon, accuracy=accuracy, elapsed=elapsed,
                  time=int(timestamp if timestamp is not None else self.wall()*1000))
         distance = 0
@@ -91,17 +101,21 @@ class Tracker:
             if seconds <= 0:
                 return False
             distance = meters(self.last, p)
-            if seconds > 8:
+            signal_gap = elapsed-(self.last_signal_elapsed if self.last_signal_elapsed is not None else self.last['elapsed'])
+            if signal_gap > 8:
                 self.segment += 1
                 distance = 0
             else:
                 if distance/seconds > (9 if self.active['mode'] == 'run' else 4.5):
                     return False
-                threshold = max(1.5, min(3, min(accuracy, self.last['accuracy'])*0.2))
+                self.note_signal(accuracy, elapsed)
+                # Keep short walking steps and corners; never average across a turn.
+                threshold = max(.75, min(1.5, min(accuracy, self.last['accuracy'])*0.1))
                 if distance < threshold:
                     return False
                 if speed is not None and speed < 0.35 and distance < max(3, accuracy*0.6):
                     return False
+        self.note_signal(accuracy, elapsed)
         p['seg'] = self.segment
         self.active['points'].append(p)
         self.active['distance'] += distance
@@ -110,6 +124,12 @@ class Tracker:
         self.active.pop('error', None)
         self.last = p
         return True
+
+    def note_signal(self, accuracy, elapsed):
+        self.last_signal_elapsed = elapsed
+        self.active['accuracy'] = accuracy
+        self.active['lastSignal'] = int(self.wall()*1000)
+
 
 
 def to_gpx(activity):

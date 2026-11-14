@@ -22,6 +22,32 @@ class TrackingTests(unittest.TestCase):
         self.assertEqual(len(self.t.snapshot()['points']), 3)
         self.assertAlmostEqual(self.t.snapshot()['distance'], 6, delta=.1)
 
+    def test_short_walking_corner_is_preserved(self):
+        self.assertTrue(self.fix())
+        self.assertTrue(self.fix(lat=.000009, elapsed=101, speed=1))
+        self.assertTrue(self.fix(lat=.000009, lon=.000009, elapsed=102, speed=1))
+        self.assertEqual(len(self.t.snapshot()['points']), 3)
+        self.assertAlmostEqual(self.t.snapshot()['distance'], 2, delta=.05)
+
+    def test_cached_fix_before_start_or_resume_is_rejected(self):
+        stamp = (1700000000+self.now)*1000
+        self.assertFalse(self.fix(timestamp=stamp-1000))
+        self.assertTrue(self.fix(timestamp=stamp))
+        self.t.pause()
+        self.now += 20
+        self.t.resume()
+        self.assertFalse(self.fix(elapsed=120, timestamp=stamp+19000))
+        self.assertTrue(self.fix(elapsed=121, timestamp=stamp+20000))
+
+    def test_stationary_good_signal_does_not_create_a_false_gap(self):
+        self.fix()
+        for n in range(1, 12):
+            self.assertFalse(self.fix(elapsed=100+n, speed=0))
+        self.assertEqual(self.t.snapshot()['lastSignal'], 1700000100000)
+        self.assertTrue(self.fix(lat=.000027, elapsed=112, speed=1.4))
+        points = self.t.snapshot()['points']
+        self.assertEqual(points[0]['seg'], points[1]['seg'])
+
     def test_gap_does_not_add_shortcut_distance(self):
         self.fix()
         self.fix(lat=.01, elapsed=110)

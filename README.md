@@ -124,3 +124,7 @@ Calorias usam a mesma fórmula do Passo anterior: 3,8 MET para caminhada e 7,5 M
 
 ## Visual 2.1.0
 Interface clara com detalhes azuis, cartoes arredondados, mapa em destaque, cronometro e navegacao inferior. Layout inspirado na referencia fornecida pelo usuario. Sem login ou dados ficticios. Os controles de GPS, historico e exportacao foram preservados.
+
+
+## GPS 2.2.0
+Iniciar ou retomar abre o mapa automaticamente apos a permissao de localizacao. Posicoes anteriores ao inicio/retomada sao descartadas. O filtro preserva passos curtos e curvas sem suavizacao que arredonde esquinas. Sinal valido com a pessoa parada nao gera aviso falso de perda de GPS. Lacunas reais continuam separadas. Sem ajuste automatico a ruas; nao e possivel garantir um percurso perfeito. Nenhum servico de ajuste de trajetos foi integrado.
