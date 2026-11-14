@@ -227,7 +227,9 @@ class PassoApp(App):
         popup = Popup(title='GPS • mapa livre', size_hint=(.98, .96), content=box, auto_dismiss=False)
         self.map_popup = popup
         box.add_widget(self.button('Voltar para a atividade', popup.dismiss))
-        box.add_widget(self.label('Arraste com um dedo para explorar. Afaste ou junte dois dedos para ajustar o zoom.', 42, 12))
+        hint = self.label('Arraste com um dedo para explorar. Afaste ou junte dois dedos para ajustar o zoom.', 42, 12)
+        hint.color = (.95, .97, .95, 1)
+        box.add_widget(hint)
         box.add_widget(self.mapview)
         zoom_row = self.zoom_row()
         self.popup_zoom_pair = self.zoom_controls[-1]
