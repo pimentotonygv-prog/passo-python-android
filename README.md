@@ -2,6 +2,8 @@
 
 Reimplementação do Passo em Python com Kivy, mapa OpenStreetMap, GPS Android e serviço de gravação separado da interface.
 
+Atualização da compilação: a primeira execução no GitHub passou nos 11 testes e compilou os componentes nativos, mas falhou ao reutilizar o ambiente de instalação de pacotes entre as arquiteturas. O projeto agora inclui uma correção pequena em `tools/prepare_p4a.py`, que recria esse ambiente a cada arquitetura, além de fixar uma versão puramente Python de chardet. O fluxo salva cache de compilação e um relatório separado em caso de falha. O fluxo também inicia automaticamente quando há envio à branch main. O resultado final da compilação será informado junto do APK; as limitações abaixo descrevem a entrega inicial do código.
+
 ## Estado desta entrega
 
 - Código-fonte, configuração Android, testes e fluxo manual de compilação incluídos.

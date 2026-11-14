@@ -6,5 +6,9 @@ if [[ "$(uname -s)" != Linux ]]; then
   exit 1
 fi
 python -m unittest discover -s tests -v
+if [[ ! -d .p4a ]]; then
+  git clone --depth 1 --branch v2026.05.09 https://github.com/kivy/python-for-android .p4a
+fi
+python tools/prepare_p4a.py .p4a
 buildozer -v android debug
 echo 'APK gerado na pasta bin/'

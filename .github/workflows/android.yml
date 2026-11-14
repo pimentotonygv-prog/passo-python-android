@@ -25,13 +25,37 @@ jobs:
           python -m pip install git+https://github.com/kivy/buildozer setuptools legacy-cgi 'cython==0.29.34'
       - name: Testar lógica
         run: python -m unittest discover -s tests -v
+      - uses: actions/cache/restore@v4
+        id: android-cache
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: passo-p4a-20260509-ndk28c-py314-v1-${{ github.run_id }}
+          restore-keys: passo-p4a-20260509-ndk28c-py314-v1-
+      - name: Preparar compilador Python Android
+        run: |
+          git clone --depth 1 --branch v2026.05.09 https://github.com/kivy/python-for-android .p4a
+          python tools/prepare_p4a.py .p4a
       - name: Compilar APK de teste
         # Acceptance is explicit for this manual CI job only.
         run: |
           sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-          buildozer -v android debug
+          buildozer -v android debug > build.log 2>&1 || { tail -n 180 build.log; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: Passo-Python-APK
           path: bin/*.apk
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Relatorio-compilacao
+          path: build.log
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: ${{ steps.android-cache.outputs.cache-primary-key }}
