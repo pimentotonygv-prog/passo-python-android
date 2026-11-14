@@ -107,9 +107,96 @@ class LayoutApp(PassoApp):
             assert self.mapbox.height >= open_height-1
             print(f'Responsive {width}x{height}: text fits, swipes scroll, last action reachable, map collapses.')
 
+        Window.size = (400, 850)
+        self.active_home()
+        yield .3
         self.explore_map()
         yield .3
         assert self.map_popup and self.mapview.interactive
+        assert not self.follow
+        farther, closer = self.popup_zoom_pair
+        initial_zoom = self.mapview.zoom
+        closer.trigger_action(duration=0)
+        yield .3
+        assert self.mapview.zoom == initial_zoom+1
+        farther.trigger_action(duration=0)
+        yield .3
+        assert self.mapview.zoom == initial_zoom
+        self.mapview.zoom = self.map_source.max_zoom
+        yield .1
+        self.zoom_map(1)
+        assert self.mapview.zoom == self.map_source.max_zoom and closer.disabled
+        self.mapview.zoom = self.map_source.min_zoom
+        yield .1
+        self.zoom_map(-1)
+        assert self.mapview.zoom == self.map_source.min_zoom and farther.disabled
+
+        self.mapview.zoom = 5
+        self.mapview.center_on(20, 0)
+        yield .3
+        before_pan = (self.mapview.lat, self.mapview.lon)
+        x, y = self.mapview.to_window(*self.mapview.center)
+        yield from self.swipe(x, y)
+        assert (abs(self.mapview.lat-before_pan[0])+abs(self.mapview.lon-before_pan[1])) > .001, 'map did not pan'
+        before_lon = self.mapview.lon
+        horizontal = UnitTestTouch(x, y)
+        horizontal.touch_down()
+        yield .02
+        for distance in (20, 40, 60, 80):
+            horizontal.touch_move(x+distance, y)
+            yield .02
+        horizontal.touch_up()
+        yield .3
+        assert abs(self.mapview.lon-before_lon) > .001, 'map did not pan horizontally'
+
+        # Exercise native two-finger Scatter zoom with actual touch events.
+        before_scale = (2**self.mapview.zoom)*self.mapview.scale
+        x, y = self.mapview.to_window(*self.mapview.center)
+        left, right = UnitTestTouch(x-30, y), UnitTestTouch(x+30, y)
+        left.touch_down()
+        right.touch_down()
+        yield .02
+        for distance in (40, 50, 65, 80):
+            left.touch_move(x-distance, y)
+            right.touch_move(x+distance, y)
+            yield .03
+        left.touch_up()
+        right.touch_up()
+        yield .5
+        assert (2**self.mapview.zoom)*self.mapview.scale > before_scale*1.2, 'pinch did not zoom'
+        zoomed_scale = (2**self.mapview.zoom)*self.mapview.scale
+        left, right = UnitTestTouch(x-80, y), UnitTestTouch(x+80, y)
+        left.touch_down()
+        right.touch_down()
+        yield .02
+        for distance in (65, 50, 40, 30):
+            left.touch_move(x-distance, y)
+            right.touch_move(x+distance, y)
+            yield .03
+        left.touch_up()
+        right.touch_up()
+        yield .5
+        assert (2**self.mapview.zoom)*self.mapview.scale < zoomed_scale*.85, 'pinch did not zoom out'
+        Window.screenshot(name='tela-mapa-livre-zoom.png')
+
+        camera = (self.mapview.lat, self.mapview.lon, self.mapview.zoom)
+        self.preview_position(10, 20, 5)
+        yield .2
+        assert all(abs(a-b) < .000001 for a, b in zip(camera, (self.mapview.lat, self.mapview.lon, self.mapview.zoom)))
+
+        # A recorded fix updates the route but must preserve the explored camera.
+        camera = (self.mapview.lat, self.mapview.lon, self.mapview.zoom)
+        self.store.checkpoint(dict(id='camera-test', date=1700000000000, mode='walk', weight=70,
+            points=[dict(lat=10, lon=20, time=1700000000000, seg=1)], distance=0,
+            duration=5000, status='running', accuracy=5))
+        self.refresh()
+        yield .2
+        assert not self.follow
+        assert all(abs(a-b) < .000001 for a, b in zip(camera, (self.mapview.lat, self.mapview.lon, self.mapview.zoom)))
+        self.center()
+        yield .2
+        assert self.follow and abs(self.mapview.lat-10) < .000001 and abs(self.mapview.lon-20) < .000001
+        self.store.checkpoint({})
         self.map_popup.dismiss()
         yield .3
         assert not self.map_popup and not self.mapview.interactive
