@@ -5,7 +5,7 @@ package.domain = br.com.passo
 source.dir = .
 source.include_exts = py,png,kv
 source.exclude_dirs = tests,.github,bin,.venv,__pycache__,.p4a,tools
-version = 2.1.1
+version = 2.1.2
 requirements = python3,kivy,pyjnius,sqlite3,kivy_garden.mapview,requests,openssl,certifi,chardet==5.2.0
 orientation = portrait
 fullscreen = 0

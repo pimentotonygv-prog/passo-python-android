@@ -163,23 +163,6 @@ class LayoutApp(PassoApp):
         yield .3
         assert self.map_popup and self.mapview.interactive
         assert not self.follow
-        farther, closer = self.popup_zoom_pair
-        initial_zoom = self.mapview.zoom
-        closer.trigger_action(duration=0)
-        yield .3
-        assert self.mapview.zoom == initial_zoom+1
-        farther.trigger_action(duration=0)
-        yield .3
-        assert self.mapview.zoom == initial_zoom
-        self.mapview.zoom = self.map_source.max_zoom
-        yield .1
-        self.zoom_map(1)
-        assert self.mapview.zoom == self.map_source.max_zoom and closer.disabled
-        self.mapview.zoom = self.map_source.min_zoom
-        yield .1
-        self.zoom_map(-1)
-        assert self.mapview.zoom == self.map_source.min_zoom and farther.disabled
-
         self.mapview.zoom = 5
         self.mapview.center_on(20, 0)
         yield .3

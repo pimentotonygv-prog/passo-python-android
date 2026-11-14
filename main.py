@@ -90,7 +90,6 @@ class PassoApp(App):
         self.signature, self.follow = None, True
         self.preview = None
         self.map_popup = None
-        self.zoom_controls = []
         self.map_loaded, self.map_error = False, ''
         self.position_note = 'Visão geral. Toque em Centralizar GPS para encontrar sua posição.'
         self.root_box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(12))
@@ -114,7 +113,6 @@ class PassoApp(App):
         self.route = RouteLayer()
         self.mapview.add_layer(self.route, mode='window')
         self.mapview.bind(on_touch_down=self.map_touched)
-        self.mapview.bind(zoom=self.sync_zoom_controls)
         self.home()
         Window.bind(size=self.resize_content)
         Clock.schedule_once(lambda dt: self.locate(prompt=False), 1)
@@ -209,8 +207,6 @@ class PassoApp(App):
         self.map_frame.add_widget(self.mapview)
         self.page_scroll.map_target = self.mapview
         self.mapbox.add_widget(self.map_frame)
-        self.zoom_controls = []
-        self.mapbox.add_widget(self.zoom_row())
         self.mapbox.add_widget(self.mapnote)
         map_controls = ContentRow(spacing=dp(5))
         map_controls.add_widget(self.button('Centralizar GPS', self.center))
@@ -255,9 +251,6 @@ class PassoApp(App):
         hint.color = (.95, .97, .95, 1)
         box.add_widget(hint)
         box.add_widget(self.mapview)
-        zoom_row = self.zoom_row()
-        self.popup_zoom_pair = self.zoom_controls[-1]
-        box.add_widget(zoom_row)
         controls = ContentRow(spacing=dp(6))
         controls.add_widget(self.button('Minha posição GPS', self.center))
         controls.add_widget(self.button('Atualizar mapa', self.reload_map))
@@ -271,34 +264,7 @@ class PassoApp(App):
         self.mapview.interactive = True
         self.map_frame.add_widget(self.mapview)
         self.map_popup = None
-        if self.popup_zoom_pair in self.zoom_controls:
-            self.zoom_controls.remove(self.popup_zoom_pair)
         Clock.schedule_once(lambda dt: self.mapview.trigger_update(True), .1)
-
-    def zoom_row(self):
-        row = ContentRow(spacing=dp(6))
-        farther = self.button('− Afastar', lambda: self.zoom_map(-1))
-        closer = self.button('+ Aproximar', lambda: self.zoom_map(1))
-        row.add_widget(farther)
-        row.add_widget(closer)
-        self.zoom_controls.append((farther, closer))
-        self.sync_zoom_controls()
-        return row
-
-    def zoom_map(self, direction):
-        self.follow = False
-        source = self.mapview.map_source
-        target = int(self.mapview.zoom)+direction
-        self.mapview.zoom = max(source.min_zoom, min(source.max_zoom, target))
-        self.sync_zoom_controls()
-
-    def sync_zoom_controls(self, *_):
-        if not hasattr(self, 'mapview'):
-            return
-        source = self.mapview.map_source
-        for farther, closer in self.zoom_controls:
-            farther.disabled = self.mapview.zoom <= source.min_zoom
-            closer.disabled = self.mapview.zoom >= source.max_zoom
 
     def active_home(self):
         self.viewing = None
