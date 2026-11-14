@@ -1,7 +1,13 @@
 """Kivy Android application; launch on desktop only for a UI preview."""
 import time
+import os
+import certifi
 from datetime import datetime
 from pathlib import Path
+
+# Configure trusted certificates before the map/network libraries are imported.
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -21,6 +27,7 @@ from kivy_garden.mapview import downloader
 from passo.android_bridge import AndroidBridge
 from passo.core import to_gpx
 from passo.storage import Store
+from passo.map_widget import ReliableMapSource
 
 GREEN = (.14, .44, .30, 1)
 INK = (.06, .18, .15, 1)
@@ -36,6 +43,7 @@ class RouteLayer(MapLayer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.points = []
+        self.preview_fix = None
 
     def reposition(self):
         if not self.parent:
@@ -52,8 +60,8 @@ class RouteLayer(MapLayer):
             for _, coordinates in groups:
                 if len(coordinates) >= 4:
                     Line(points=coordinates, width=dp(2))
-            if self.points:
-                p = self.points[-1]
+            if self.points or self.preview_fix:
+                p = self.points[-1] if self.points else self.preview_fix
                 x, y = view.get_window_xy_from(p['lat'], p['lon'], view.zoom)
                 Ellipse(pos=(x-dp(5), y-dp(5)), size=(dp(10), dp(10)))
 
@@ -78,6 +86,9 @@ class PassoApp(App):
         self.bridge = AndroidBridge(self.user_data_dir, self.message)
         self.mode, self.viewing = 'walk', None
         self.signature, self.follow = None, True
+        self.preview = None
+        self.map_loaded, self.map_error = False, ''
+        self.position_note = 'Visão geral. Toque em Centralizar GPS para encontrar sua posição.'
         self.root_box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(12))
         self.root_box.add_widget(self.label('passo.  |  Python para Android', 45, 23))
         nav = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
@@ -87,14 +98,17 @@ class PassoApp(App):
         self.root_box.add_widget(nav)
         self.body = BoxLayout(orientation='vertical', spacing=dp(7))
         self.root_box.add_widget(self.body)
-        self.mapview = MapView(zoom=2, lat=0, lon=0,
-                               map_source=MapSource(url='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                                    attribution='© OpenStreetMap contributors'),
-                               cache_dir=str(Path(self.user_data_dir)/'tiles'))
+        cache_dir = Path(self.user_data_dir)/'tiles'
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self.map_source = ReliableMapSource(cache_dir, self.map_status, certifi.where())
+        self.mapview = MapView(zoom=1, lat=20, lon=0, map_source=self.map_source,
+                              cache_dir=str(cache_dir), background_color=(.92, .94, .91, 1))
+        self.map_source.cache_dir = str(cache_dir)
         self.route = RouteLayer()
         self.mapview.add_layer(self.route, mode='window')
         self.mapview.bind(on_touch_down=self.map_touched)
         self.home()
+        Clock.schedule_once(lambda dt: self.locate(prompt=False), 1)
         Clock.schedule_interval(self.refresh, 1)
         return self.root_box
 
@@ -145,14 +159,20 @@ class PassoApp(App):
         self.toggle = self.button('', self.toggle_map)
         self.body.add_widget(self.toggle)
         self.mapbox = BoxLayout(orientation='vertical', spacing=dp(4))
+        self.mapnote = self.label('', 52, 12)
+        self.mapbox.add_widget(self.mapnote)
         self.mapbox.add_widget(self.mapview)
-        self.mapbox.add_widget(self.button('Centralizar GPS', self.center))
+        map_controls = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(5))
+        map_controls.add_widget(self.button('Centralizar GPS', self.center))
+        map_controls.add_widget(self.button('Atualizar mapa', self.reload_map))
+        self.mapbox.add_widget(map_controls)
         self.body.add_widget(self.mapbox)
         self.actions = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
         self.body.add_widget(self.actions)
         self.apply_map()
         self.choose(self.mode)
         self.refresh()
+        self.update_map_note()
 
     def active_home(self):
         self.viewing = None
@@ -179,6 +199,65 @@ class PassoApp(App):
         else:
             Clock.schedule_once(lambda dt: self.route.reposition(), .1)
 
+    def map_status(self, loaded, error):
+        if loaded:
+            self.map_loaded = True
+            self.map_error = ''
+        else:
+            self.map_error = error
+        self.update_map_note()
+
+    def update_map_note(self):
+        if hasattr(self, 'mapnote'):
+            self.mapnote.text = (self.map_error or
+                (('Mapa carregado. ' if self.map_loaded else 'Carregando mapa pela internet... ') + self.position_note))
+
+    def reload_map(self):
+        self.map_loaded, self.map_error = False, ''
+        self.update_map_note()
+        self.mapview.remove_all_tiles()
+        self.mapview.trigger_update(True)
+
+    def locate(self, prompt=True):
+        from kivy.utils import platform
+        if self.viewing or self.route.points:
+            return
+        if platform != 'android':
+            return
+        from android.permissions import Permission, check_permission, request_permissions
+        def begin(*_):
+            if not check_permission(Permission.ACCESS_FINE_LOCATION):
+                if prompt:
+                    self.position_note = 'Permita localização precisa para centralizar o mapa.'
+                    self.update_map_note()
+                return
+            from passo.location_preview import LocationPreview
+            if self.preview:
+                self.preview.stop()
+            self.position_note = 'Buscando sua posição GPS...'
+            self.update_map_note()
+            self.preview = LocationPreview(self.preview_position, self.preview_error)
+            self.preview.start()
+        if check_permission(Permission.ACCESS_FINE_LOCATION):
+            begin()
+        elif prompt:
+            request_permissions([Permission.ACCESS_FINE_LOCATION, Permission.ACCESS_COARSE_LOCATION],
+                                lambda *a: Clock.schedule_once(lambda dt: begin(), 0))
+
+    def preview_position(self, lat, lon, accuracy):
+        if self.viewing or self.route.points:
+            return
+        self.mapview.zoom = 17
+        self.mapview.center_on(lat, lon)
+        self.route.preview_fix = {'lat': lat, 'lon': lon}
+        self.route.reposition()
+        self.position_note = f'Posição encontrada (±{accuracy:.0f} m).'
+        self.update_map_note()
+
+    def preview_error(self, message):
+        self.position_note = message
+        self.update_map_note()
+
     def map_touched(self, widget, touch):
         if widget.collide_point(*touch.pos):
             self.follow = False
@@ -189,8 +268,10 @@ class PassoApp(App):
         if points:
             self.mapview.zoom = 17
             self.mapview.center_on(points[-1]['lat'], points[-1]['lon'])
+            self.position_note = 'Exibindo o percurso registrado.'
+            self.update_map_note()
         else:
-            self.message('Inicie uma atividade e aguarde o sinal do GPS.')
+            self.locate()
 
     def send(self, action, **kwargs):
         def perform():
@@ -320,10 +401,13 @@ class PassoApp(App):
         box.add_widget(self.button('Voltar à atividade', lambda: (setattr(self, 'viewing', None), self.home())))
 
     def on_pause(self):
+        if self.preview:
+            self.preview.stop()
         return True
 
     def on_resume(self):
         self.refresh()
+        self.locate(prompt=False)
 
 
 if __name__ == '__main__':

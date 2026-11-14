@@ -6,6 +6,28 @@ on:
 permissions:
   contents: read
 jobs:
+  map-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preparar teste visual do mapa
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth libgl1-mesa-dri libgles2 libmtdev1
+          python -m pip install --only-binary=:all: kivy kivy_garden.mapview requests certifi
+      - name: Testar mapa com imagens reais
+        env:
+          KIVY_NO_ARGS: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python tools/smoke_map.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mapa-validado
+          path: mapa-validado*.png
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
