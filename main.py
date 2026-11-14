@@ -91,7 +91,7 @@ class PassoApp(App):
         self.map_loaded, self.map_error = False, ''
         self.position_note = 'Visão geral. Toque em Centralizar GPS para encontrar sua posição.'
         self.root_box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(12))
-        self.root_box.add_widget(self.label('passo.  |  Python para Android', 45, 23))
+        self.root_box.add_widget(self.label('passo', 45, 23))
         nav = ContentRow(spacing=dp(6))
         nav.add_widget(self.button('Atividade', self.active_home))
         nav.add_widget(self.button('Histórico', self.history))

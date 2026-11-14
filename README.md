@@ -4,19 +4,23 @@ Reimplementação do Passo em Python com Kivy, mapa OpenStreetMap, GPS Android e
 
 Atualização da compilação: a primeira execução no GitHub passou nos 11 testes e compilou os componentes nativos, mas falhou ao reutilizar o ambiente de instalação de pacotes entre as arquiteturas. O projeto agora inclui uma correção pequena em `tools/prepare_p4a.py`, que recria esse ambiente a cada arquitetura, além de fixar uma versão puramente Python de chardet. O fluxo salva cache de compilação e um relatório separado em caso de falha. O fluxo também inicia automaticamente quando há envio à branch main. O resultado final da compilação será informado junto do APK; as limitações abaixo descrevem a entrega inicial do código.
 
-## Estado da entrega 2.0.1
+## Estado da entrega 2.0.2
 
-- APK 2.0.1 gerado e assinado localmente com a chave estavel do Passo. A chave privada nao e publicada no projeto ou no GitHub.
-- 16 testes de logica, armazenamento e mapa passaram.
-- Teste visual Kivy/Linux: imagens reais do mapa baixadas por HTTPS e exibidas na interface. GPS fisico, permissoes e tela apagada ainda precisam de teste no Android.
-- Corrigidos o cache privado do mapa, os certificados HTTPS, os avisos de falha e a busca de posicao sem iniciar caminhada.
-- Compilacao: https://github.com/pimentotonygv-prog/passo-python-android/actions/runs/43543441215
+- APK 2.0.2 compilado e assinado com a mesma chave local da entrega 2.0.1. Pode ser instalado sobre o APK 2.0.1 enviado no chat, preservando os dados.
+- Tela principal, Historico e Sobre com rolagem vertical por toque e barra de rolagem.
+- Textos e botoes ajustam a altura ao conteudo e a largura disponivel. O mapa ajusta sua altura ao tamanho da janela.
+- O mapa na pagina permite rolar a tela. Explorar mapa abre a visualizacao interativa, com retorno para a atividade.
+- Os botoes de atividade nao sao recriados a cada atualizacao do cronometro.
+- 16 testes da logica e do mapa passaram.
+- Testes visuais e gestos de toque passaram em 280x480, 320x568, 360x640, 400x850 e 640x360, incluindo acesso ao ultimo botao, textos longos, ocultar/mostrar mapa e navegacao.
+- Validacao executada em Kivy/Linux/Xvfb; as medidas sao janelas de teste, nao aparelhos fisicos Android.
+- Compilacao: https://github.com/pimentotonygv-prog/passo-python-android/actions/runs/43545230863
 
-### Atualizar a versao de teste
+### Assinatura e dados
 
-A versao 2.0.0 usava uma chave temporaria. Exporte atividades em GPX antes de remover apenas o Passo Python 2.0.0 e instalar 2.0.1. A desinstalacao apaga os dados privados e o historico nao e importado automaticamente. O Passo original em Java e outro app e nao precisa ser removido.
+A chave estavel usada para assinar o APK entregue fica apenas no computador do proprietario. Ela nao e publicada no projeto ou no GitHub. APKs brutos do GitHub usam uma chave temporaria diferente; para atualizar mantenha a mesma chave da instalacao.
 
-Os APKs brutos do GitHub usam assinatura de depuracao temporaria, diferente da chave estavel do arquivo entregue neste chat. Atualizacoes devem manter a mesma chave de assinatura.
+A atualizacao 2.0.1 para 2.0.2 enviada neste chat preserva o historico ao instalar por cima, sem desinstalar. A versao antiga 2.0.0 usava outra assinatura: exporte GPX antes de remove-la caso ainda esteja usando essa versao. O Passo original em Java e um app separado.
 
 ## Funções implementadas no código
 
