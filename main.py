@@ -99,6 +99,8 @@ class PassoApp(App):
         nav.add_widget(self.button('Atividade', self.active_home))
         nav.add_widget(self.button('Histórico', self.history))
         nav.add_widget(self.button('Sobre', self.about))
+        for tab in nav.children:
+            tab.font_size = dp(13)
         self.navigation = nav
         self.body = BoxLayout(orientation='vertical', spacing=dp(7))
         self.root_box.add_widget(self.body)

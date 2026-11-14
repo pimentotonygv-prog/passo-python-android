@@ -79,8 +79,9 @@ class LayoutApp(PassoApp):
             self.scroll_edge(1)
             yield .15
             Window.screenshot(name=f'tela-{width}x{height}-inicio.png')
-            x, y = self.stats.to_window(*self.stats.center)
-            y = max(self.page_scroll.y+dp(90), min(self.page_scroll.top-dp(90), y))
+            # Use the page gutter: the reference layout now shows the map first.
+            x = self.page_scroll.x+dp(3)
+            y = self.page_scroll.center_y
             yield from self.swipe(x, y)
             assert self.page_scroll.scroll_y < .99, ('page did not scroll', width, height)
             self.scroll_edge(self.page_scroll.scroll_y)
@@ -94,7 +95,9 @@ class LayoutApp(PassoApp):
             self.page_scroll.scroll_to(self.mapview, padding=0, animate=False)
             yield .25
             x, y = self.mapview.to_window(*self.mapview.center)
-            y = max(self.page_scroll.y+dp(90), min(self.page_scroll.top-dp(90), y))
+            mx, my = self.mapview.to_window(*self.mapview.pos)
+            y = (max(my, self.page_scroll.y)+min(my+self.mapview.height, self.page_scroll.top))/2
+            assert my <= y <= my+self.mapview.height
             before = self.page_scroll.scroll_y
             before_camera = (self.mapview.lat, self.mapview.lon)
             yield from self.swipe(x, y, -1 if before < .5 else 1)
