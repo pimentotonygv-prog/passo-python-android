@@ -319,11 +319,28 @@ class PassoApp(App):
     def apply_map(self):
         opened = self.store.get('map_open', True)
         self.toggle.text = 'Fechar mapa GPS' if opened else 'Abrir mapa GPS'
-        self.mapbox.opacity = 1 if opened else 0
-        self.mapbox.disabled = not opened
+        # A zero-height layout still owns live children and map touch bounds.
+        # Remove the whole card while closed so it cannot intercept the toggle.
+        self.page_scroll.map_target = None
+        if not opened:
+            if self.mapbox.parent:
+                self.mapbox.parent.remove_widget(self.mapbox)
+            self.mapbox.disabled = True
+            self.mapbox.opacity = 0
+            self.mapbox.height = 0
+            return
+        self.mapbox.disabled = False
+        self.mapbox.opacity = 1
         self.fit_mapbox()
-        if opened:
-            Clock.schedule_once(lambda dt: self.route.reposition(), .1)
+        if not self.mapbox.parent:
+            self.content.add_widget(self.mapbox, index=self.content.children.index(self.toggle))
+        self.page_scroll.map_target = self.mapview
+        Clock.schedule_once(self.restore_map_view, .1)
+
+    def restore_map_view(self, *_):
+        if self.store.get('map_open', True) and self.mapbox.parent:
+            self.mapview.trigger_update(True)
+            self.route.reposition()
 
     def map_status(self, loaded, error):
         if loaded:

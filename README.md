@@ -120,3 +120,7 @@ Antes de tratar esta versão como pronta para uso diário:
 - [Requisitos de serviços foreground Android](https://developer.android.com/develop/background-work/services/fgs/launch).
 
 Calorias usam a mesma fórmula do Passo anterior: 3,8 MET para caminhada e 7,5 MET para corrida. São estimativas pelo peso e tempo, não medição direta.
+
+
+## Visual 2.1.0
+Interface clara com detalhes azuis, cartoes arredondados, mapa em destaque, cronometro e navegacao inferior. Layout inspirado na referencia fornecida pelo usuario. Sem login ou dados ficticios. Os controles de GPS, historico e exportacao foram preservados.

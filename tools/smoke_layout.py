@@ -108,12 +108,33 @@ class LayoutApp(PassoApp):
             self.refresh()
             assert self.actions.children[0] is button
             open_height = self.mapbox.height
-            self.toggle_map()
-            yield .2
-            assert self.mapbox.height == 0
-            self.toggle_map()
-            yield .2
-            assert self.mapbox.height >= open_height-1
+            # Exercise the visible button with real touch, including repeat opens.
+            for repeat in range(3):
+                self.scroll_edge(self.page_scroll.scroll_y)
+                self.page_scroll.scroll_to(self.toggle, padding=dp(12), animate=False)
+                yield .2
+                x, y = self.toggle.to_window(*self.toggle.center)
+                touch = UnitTestTouch(x, y)
+                touch.touch_down()
+                yield .02
+                touch.touch_up()
+                yield .3
+                assert not self.store.get('map_open', True), 'close button did not respond'
+                assert self.mapbox.parent is None and self.page_scroll.map_target is None
+                self.scroll_edge(self.page_scroll.scroll_y)
+                self.page_scroll.scroll_to(self.toggle, padding=dp(12), animate=False)
+                yield .2
+                x, y = self.toggle.to_window(*self.toggle.center)
+                touch = UnitTestTouch(x, y)
+                touch.touch_down()
+                yield .02
+                touch.touch_up()
+                yield .3
+                assert self.store.get('map_open', False), 'open button did not respond'
+                assert self.mapbox.parent is self.content
+                assert self.page_scroll.map_target is self.mapview
+                assert not self.mapview.disabled
+                assert self.mapbox.height >= open_height-1
             print(f'Responsive {width}x{height}: text fits, swipes scroll, last action reachable, map collapses.')
 
         Window.size = (400, 850)
