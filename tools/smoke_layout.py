@@ -36,6 +36,7 @@ class LayoutApp(PassoApp):
             self.stop()
         except Exception:
             result['error'] = traceback.format_exc()
+            Window.screenshot(name='tela-erro.png')
             self.stop()
         else:
             Clock.schedule_once(self.advance, delay)
@@ -61,6 +62,13 @@ class LayoutApp(PassoApp):
         touch.touch_up()
         yield .3
 
+    def scroll_edge(self, value):
+        # Stop swipe inertia before positioning the viewport for measurement.
+        effect = self.page_scroll.effect_y
+        effect.velocity = 0
+        effect.trigger_velocity_update.cancel()
+        self.page_scroll.scroll_y = value
+
     def checks(self):
         for width, height in [(280, 480), (320, 568), (360, 640), (400, 850), (640, 360)]:
             Window.size = (width, height)
@@ -68,12 +76,12 @@ class LayoutApp(PassoApp):
             yield .5
             self.assert_content()
             assert self.content.height > self.page_scroll.height
-            self.page_scroll.scroll_y = 1
+            self.scroll_edge(1)
             yield .15
             Window.screenshot(name=f'tela-{width}x{height}-inicio.png')
             yield from self.swipe(self.page_scroll.center_x, self.page_scroll.center_y)
             assert self.page_scroll.scroll_y < .99, ('page did not scroll', width, height)
-            self.page_scroll.scroll_y = 0
+            self.scroll_edge(0)
             yield .25
             x, y = self.actions.to_window(*self.actions.center)
             assert self.page_scroll.y <= y <= self.page_scroll.top, ('start inaccessible', width, height, y)
@@ -118,7 +126,7 @@ class LayoutApp(PassoApp):
         self.about()
         yield .4
         self.assert_content()
-        self.page_scroll.scroll_y = 0
+        self.scroll_edge(0)
         yield .2
         Window.screenshot(name='tela-280x480-sobre-fim.png')
         self.store.archive(dict(id='test', date=1700000000000, mode='walk', distance=1234,
@@ -126,7 +134,7 @@ class LayoutApp(PassoApp):
         self.history()
         yield .4
         self.assert_content()
-        self.page_scroll.scroll_y = 0
+        self.scroll_edge(0)
         yield .2
         Window.screenshot(name='tela-280x480-historico-fim.png')
 

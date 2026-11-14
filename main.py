@@ -12,6 +12,7 @@ os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.effects.scroll import ScrollEffect
 from kivy.graphics import Color, Line, Ellipse
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
@@ -135,6 +136,7 @@ class PassoApp(App):
     def scroll_content(self):
         self.body.clear_widgets()
         scroll = ScrollView(do_scroll_x=False, bar_width=dp(5),
+                            effect_cls=ScrollEffect,
                             scroll_type=['content', 'bars'], always_overscroll=False,
                             scroll_distance=dp(12), scroll_timeout=180)
         box = BoxLayout(orientation='vertical', size_hint_y=None, spacing=dp(8),
